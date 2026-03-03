@@ -1,0 +1,38 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+.venv/
+venv/
+env/
+*.so
+
+# === Node.js ===
+node_modules/
+frontend/node_modules/
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# === OS ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Model Weights (External Dependency) ===
+Hunyuan3D-2/weights/
+
+# === Generated Files ===
+backend/uploads/
+backend/models/
+Hunyuan3D-2/outputs*/
+
+# === LFS (not needed anymore) ===
+.gitattributes
