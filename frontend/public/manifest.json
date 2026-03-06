@@ -1,0 +1,23 @@
+{
+    "name": "Nexa 3D Gen",
+    "short_name": "Nexa3D",
+    "description": "Gerador de modelos 3D com inteligência artificial",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#020617",
+    "theme_color": "#020617",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "/vite.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": [
+        "productivity",
+        "utilities"
+    ],
+    "lang": "pt-BR"
+}
