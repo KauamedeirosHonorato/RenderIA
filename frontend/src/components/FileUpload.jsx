@@ -83,6 +83,7 @@ const DEFAULT_SETTINGS = {
     removeDegenerateFaces: true,
     useFlashVDM: true, // Phase 4 feature
     generateVariations: false, // Phase 4 feature
+    generateTexture: true, // Phase 4 feature
 };
 
 const FileUpload = ({ onUploadSuccess }) => {
@@ -163,6 +164,7 @@ const FileUpload = ({ onUploadSuccess }) => {
         formData.append("remove_degenerate_faces", settings.removeDegenerateFaces);
         formData.append("use_flash_vdm", settings.useFlashVDM);
         formData.append("generate_variations", settings.generateVariations);
+        formData.append("generate_texture", settings.generateTexture);
 
         try {
             const response = await axios.post(`${API_BASE_URL}/generate`, formData, {
@@ -475,6 +477,7 @@ const FileUpload = ({ onUploadSuccess }) => {
                         <div className="grid grid-cols-2 gap-2">
                             {[
                                 { key: 'removeBg', label: 'Remover Fundo', desc: 'Extrai objeto da imagem' },
+                                { key: 'generateTexture', label: 'Gerar Textura', desc: 'Renderização com cor' },
                                 { key: 'useFlashVDM', label: 'Aceleração FlashVDM', desc: 'Geração muito mais rápida' },
                                 { key: 'generateVariations', label: 'Gerar Variações (3x)', desc: 'Cria 3 sementes diferentes' },
                                 { key: 'turboTexture', label: 'Textura Turbo', desc: 'Mais rápido, menos detalhes' },

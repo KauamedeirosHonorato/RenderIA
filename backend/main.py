@@ -98,7 +98,8 @@ async def generate_model(
     remove_floaters: bool = Form(True),
     remove_degenerate_faces: bool = Form(True),
     use_flash_vdm: bool = Form(True),
-    generate_variations: bool = Form(False)
+    generate_variations: bool = Form(False),
+    generate_texture: bool = Form(True)
 ):
     task_id = str(uuid.uuid4())
     
@@ -124,7 +125,8 @@ async def generate_model(
         "remove_floaters": remove_floaters,
         "remove_degenerate_faces": remove_degenerate_faces,
         "use_flash_vdm": use_flash_vdm,
-        "generate_variations": generate_variations
+        "generate_variations": generate_variations,
+        "generate_texture": generate_texture
     }
     
     tasks[task_id] = {

@@ -149,7 +149,8 @@ class HunyuanManager:
             mesh = self.shape_pipeline(**payload)[0]
             
             # 2. Generate Texture
-            if self.paint_pipeline:
+            generate_texture = settings.get("generate_texture", True)
+            if self.paint_pipeline and generate_texture:
                  print(f"[{task_id}] Generating texture...")
                  try:
                      mesh = self.paint_pipeline(
@@ -158,6 +159,8 @@ class HunyuanManager:
                      )
                  except Exception as e:
                      print(f"[{task_id}] Texture generation failed (skipping): {e}")
+            elif not generate_texture:
+                 print(f"[{task_id}] Skipping texture (User disabled it).")
             else:
                  print(f"[{task_id}] Skipping texture (Pipeline not loaded).")
             
