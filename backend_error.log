@@ -1,0 +1,10 @@
+C:\Users\aifos\OneDrive\┴rea de Trabalho\IaRender\RenderIA\.venv\Lib\site-packages\diffusers\models\transformers\transformer_kandinsky.py:168: UserWarning: CUDA is not available or torch_xla is imported. Disabling autocast.
+  @torch.autocast(device_type="cuda", dtype=torch.float32)
+C:\Users\aifos\OneDrive\┴rea de Trabalho\IaRender\RenderIA\.venv\Lib\site-packages\diffusers\models\transformers\transformer_kandinsky.py:272: UserWarning: CUDA is not available or torch_xla is imported. Disabling autocast.
+  @torch.autocast(device_type="cuda", dtype=torch.float32)
+INFO:     Started server process [99128]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+ERROR:    [Errno 10048] error while attempting to bind on address ('127.0.0.1', 8000): [winerror 10048] normalmente Ú permitida apenas uma utilizaþÒo de cada endereþo de soquete (protocolo/endereþo de rede/porta)
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.

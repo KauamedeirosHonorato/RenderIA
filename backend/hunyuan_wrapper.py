@@ -5,7 +5,7 @@ import gc
 from typing import Optional, Dict, Any
 
 # --- CONFIGURAÇÃO ---
-HUNYUAN_REPO_PATH = r"C:\Users\JayChouDev\OneDrive\Desktop\3DmD\Hunyuan3D-2"
+HUNYUAN_REPO_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "Hunyuan3D-2")
 
 # Adicionar o repo ao path do Python para imports
 if HUNYUAN_REPO_PATH not in sys.path:
@@ -37,7 +37,7 @@ class HunyuanManager:
         self.models_loaded = False
         
         # Paths
-        self.model_path = os.path.join(HUNYUAN_REPO_PATH, "weights", "hunyuan3d-2-0")
+        self.model_path = os.path.join(HUNYUAN_REPO_PATH, "weights")
         
         os.makedirs(self.output_dir, exist_ok=True)
         self.initialized = True
@@ -47,22 +47,41 @@ class HunyuanManager:
         if self.models_loaded:
             return
 
-        print("[HunyuanManager] Loading models into memory... (This may take a while)")
+        print("[HunyuanManager] Loading models into memory (FP16 optimized)... (This may take a while)")
         try:
+            # Determine appropriate dtype for RTX 3050 (FP16 is highly recommended)
+            weight_dtype = torch.float16 if self.device == "cuda" else torch.float32
+            
             # Load Shape Pipeline
             self.shape_pipeline = Hunyuan3DDiTFlowMatchingPipeline.from_pretrained(
                 self.model_path,
                 subfolder="hunyuan3d-dit-v2-0",
+                torch_dtype=weight_dtype
             )
             self.shape_pipeline.to(self.device)
+            
+            # Attempt to enable Xformers for Memory Efficient Attention
+            try:
+                self.shape_pipeline.enable_xformers_memory_efficient_attention()
+                print("[HunyuanManager] Xformers enabled for Shape Pipeline.")
+            except Exception as e:
+                print(f"[HunyuanManager] Note: Xformers could not be enabled for Shape Pipeline: {e}")
             
             # Load Paint Pipeline
             try:
                 self.paint_pipeline = Hunyuan3DPaintPipeline.from_pretrained(
                     self.model_path,
                     subfolder="hunyuan3d-paint-v2-0", 
+                    torch_dtype=weight_dtype
                 )
                 self.paint_pipeline.to(self.device)
+                
+                try:
+                    self.paint_pipeline.enable_xformers_memory_efficient_attention()
+                    print("[HunyuanManager] Xformers enabled for Paint Pipeline.")
+                except Exception as e:
+                    print(f"[HunyuanManager] Note: Xformers could not be enabled for Paint Pipeline: {e}")
+                    
             except Exception as e:
                 print(f"[HunyuanManager] WARNING: Failed to load Paint Pipeline (Texture). Missing dependencies? {e}")
                 self.paint_pipeline = None
@@ -101,18 +120,33 @@ class HunyuanManager:
             print(f"[{task_id}] Generating shape... Steps={steps}")
             
             # 1. Generate Shape
-            # Note: The actual API of hy3dgen might vary slightly, adapting based on usage in minimal_demo.py
-            # If seed provided, set it
+            # Use text prompt if image is not provided
+            text_prompt = settings.get("text_prompt")
+            
+            # FlashVDM logic: if enabled, we can use fewer steps even for standard quality
+            if settings.get("use_flash_vdm"):
+                steps = max(3, steps // 2)
+                print(f"[{task_id}] FlashVDM active: steps reduced to {steps}")
+
             generator = None
             if seed is not None:
                 generator = torch.Generator(device=self.device).manual_seed(int(seed))
                 
-            mesh = self.shape_pipeline(
-                image=image_path,
-                num_inference_steps=steps,
-                guidance_scale=guidance_scale,
-                generator=generator
-            )[0]
+            # Calling shape pipeline with either image or text
+            payload = {
+                "num_inference_steps": steps,
+                "guidance_scale": guidance_scale,
+                "generator": generator
+            }
+            
+            if text_prompt:
+                print(f"[{task_id}] Using text prompt: {text_prompt}")
+                payload["prompt"] = text_prompt
+            else:
+                print(f"[{task_id}] Using image: {image_path}")
+                payload["image"] = image_path
+
+            mesh = self.shape_pipeline(**payload)[0]
             
             # 2. Generate Texture
             if self.paint_pipeline:
