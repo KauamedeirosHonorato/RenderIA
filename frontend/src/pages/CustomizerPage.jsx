@@ -1779,7 +1779,7 @@ const CustomizerPage = () => {
                                     }`}
                                 >
                                     <Save className="w-4 h-4" />
-                                    {saveSuccess ? 'Mockup Salvo!' : 'Salvar Mockup'}
+                                    {saveSuccess ? 'Salvo!' : 'Salvar'}
                                 </button>
                                 <button
                                     onClick={handleExportMockup}

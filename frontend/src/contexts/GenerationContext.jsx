@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
-import { db, auth } from '../firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db, auth, isMock } from '../firebase';
+import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 
 const GenerationContext = createContext(null);
 
@@ -21,13 +21,51 @@ export function GenerationProvider({ children }) {
     const intervalsRef = useRef({});   // { taskId: intervalId }
     const timersRef = useRef({});      // { taskId: { intervalId, secondsRef } }
 
-    // Load history from localStorage
+    // Load history from localStorage & Firestore
     useEffect(() => {
-        const saved = localStorage.getItem('nexa_history');
-        if (saved) {
-            try { setHistory(JSON.parse(saved)); } catch (e) { /* ignore */ }
-        }
-        historyLoaded.current = true;
+        const loadHistory = async (currentUser) => {
+            let localHistory = [];
+            const saved = localStorage.getItem('nexa_history');
+            if (saved) {
+                try { localHistory = JSON.parse(saved); } catch (e) { /* ignore */ }
+            }
+
+            if (currentUser && db && !isMock) {
+                try {
+                    const q = query(
+                        collection(db, 'models'),
+                        where('userId', '==', currentUser.uid),
+                        orderBy('createdAt', 'desc')
+                    );
+                    const snapshot = await getDocs(q);
+                    const dbHistory = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data(),
+                        timestamp: doc.data().createdAt?.toDate()?.toISOString() || doc.data().timestamp || new Date().toISOString()
+                    }));
+
+                    // Merge and avoid duplicates
+                    const mergedMap = new Map();
+                    localHistory.forEach(h => mergedMap.set(h.id, h));
+                    dbHistory.forEach(h => mergedMap.set(h.id, h));
+                    
+                    setHistory(Array.from(mergedMap.values()).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
+                    historyLoaded.current = true;
+                    return;
+                } catch (err) {
+                    console.error("Error loading models from Firestore:", err);
+                }
+            }
+
+            setHistory(localHistory);
+            historyLoaded.current = true;
+        };
+
+        const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+            loadHistory(currentUser);
+        });
+
+        return () => unsubscribe();
     }, []);
 
     // Save history to localStorage

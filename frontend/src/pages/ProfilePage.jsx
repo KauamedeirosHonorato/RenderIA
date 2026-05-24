@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signOut, updateProfile } from 'firebase/auth';
-import { auth, isMock } from '../firebase';
+import { auth, isMock, db } from '../firebase';
 import { useAuthState } from '../hooks/useAuth';
 import { useGeneration } from '../contexts/GenerationContext';
 import { API_BASE_URL, setApiUrl } from '../config';
+import { collection, query, where, getDocs, orderBy, doc, deleteDoc } from 'firebase/firestore';
 import { 
     User, Mail, Calendar, Hash, LogOut, 
     Cuboid, Check, Edit2, ShieldCheck, Activity, 
@@ -54,15 +55,46 @@ const ProfilePage = () => {
         }
     }, [user]);
 
-    // Load saved mockups from localStorage
+    // Load saved mockups from localStorage & Firestore
     useEffect(() => {
-        try {
-            const mockups = JSON.parse(localStorage.getItem('nexa_saved_mockups') || '[]');
-            setSavedMockups(mockups);
-        } catch (e) {
-            console.error("Error loading saved mockups:", e);
-        }
-    }, [activeTab]);
+        const loadMockups = async () => {
+            let localMockups = [];
+            try {
+                localMockups = JSON.parse(localStorage.getItem('nexa_saved_mockups') || '[]');
+            } catch (e) {
+                console.error("Error loading local mockups:", e);
+            }
+
+            if (user && db && !isMock) {
+                try {
+                    const q = query(
+                        collection(db, 'custom_mockups'),
+                        where('userId', '==', user.uid),
+                        orderBy('createdAt', 'desc')
+                    );
+                    const snapshot = await getDocs(q);
+                    const dbMockups = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data(),
+                        timestamp: doc.data().createdAt?.toDate()?.toISOString() || doc.data().timestamp || new Date().toISOString()
+                    }));
+
+                    // Merge local and DB mockups, keeping unique IDs, favoring DB mockups if duplicate
+                    const mergedMap = new Map();
+                    localMockups.forEach(m => mergedMap.set(m.id, m));
+                    dbMockups.forEach(m => mergedMap.set(m.id, m));
+                    setSavedMockups(Array.from(mergedMap.values()).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp)));
+                    return;
+                } catch (err) {
+                    console.error("Error fetching mockups from Firestore:", err);
+                }
+            }
+
+            setSavedMockups(localMockups);
+        };
+
+        loadMockups();
+    }, [user, activeTab]);
 
     const handleLogout = async () => {
         if (!isMock) {
@@ -132,10 +164,19 @@ const ProfilePage = () => {
         }
     };
 
-    const handleDeleteMockup = (id) => {
+    const handleDeleteMockup = async (id) => {
         const updated = savedMockups.filter(m => m.id !== id);
         setSavedMockups(updated);
         localStorage.setItem('nexa_saved_mockups', JSON.stringify(updated));
+
+        if (db && !isMock && id.startsWith('mockup_')) {
+            try {
+                await deleteDoc(doc(db, 'custom_mockups', id));
+                console.log("Mockup deletado com sucesso do Firestore:", id);
+            } catch (err) {
+                console.error("Erro ao deletar mockup do Firestore:", err);
+            }
+        }
     };
 
     const handleLoadMockup = (mockup) => {
@@ -660,7 +701,7 @@ const ProfilePage = () => {
                                         <Heart className="w-10 h-10 opacity-30 mb-2.5 text-slate-400" />
                                         <p className="text-xs font-semibold text-slate-400">Nenhum mockup salvo ainda</p>
                                         <p className="text-[10px] opacity-60 mt-1 max-w-xs leading-normal">
-                                            Entre na página de **"Customizar 3D"**, crie seu design e clique em **"Salvar Mockup"** no rodapé do painel para guardá-lo aqui!
+                                            Entre na página de **"Customizar 3D"**, crie seu design e clique em **"Salvar"** no rodapé do painel para guardá-lo aqui!
                                         </p>
                                     </div>
                                 )}
