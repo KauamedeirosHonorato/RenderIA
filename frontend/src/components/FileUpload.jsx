@@ -84,6 +84,7 @@ const DEFAULT_SETTINGS = {
     useFlashVDM: true, // Phase 4 feature
     generateVariations: false, // Phase 4 feature
     generateTexture: true, // Phase 4 feature
+    smoothingSteps: 0, // NEW: default 0 (no smoothing)
 };
 
 const FileUpload = ({ onUploadSuccess }) => {
@@ -91,6 +92,7 @@ const FileUpload = ({ onUploadSuccess }) => {
     const [uploading, setUploading] = useState(false);
     const [errorMsg, setErrorMsg] = useState(null);
     const [showAdvanced, setShowAdvanced] = useState(false);
+    const [isExpertMode, setIsExpertMode] = useState(false);
     const [activePreset, setActivePreset] = useState('standard');
     const [settings, setSettings] = useState({ ...DEFAULT_SETTINGS });
     const [selectedFile, setSelectedFile] = useState(null);
@@ -181,6 +183,7 @@ const FileUpload = ({ onUploadSuccess }) => {
         formData.append("octree_resolution", settings.octreeResolution);
         formData.append("max_faces", settings.maxFaces);
         formData.append("export_format", settings.exportFormat);
+        formData.append("smoothing_steps", settings.smoothingSteps);
         formData.append("seed", settings.seed === "" ? -1 : settings.seed);
         formData.append("remove_bg", settings.removeBg);
         formData.append("turbo_texture", settings.turboTexture);
@@ -489,156 +492,204 @@ const FileUpload = ({ onUploadSuccess }) => {
                         </div>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-bold text-slate-300 flex items-center gap-2">
-                            <Cpu className="w-4 h-4 text-cyan-400" />
-                            Configurações Avançadas
-                        </h4>
-                        <button
-                            onClick={() => { setSettings({ ...DEFAULT_SETTINGS }); setActivePreset('standard'); }}
-                            className="text-[11px] text-slate-500 hover:text-slate-300 flex items-center gap-1 transition-colors"
-                        >
-                            <RotateCcw className="w-3 h-3" />
-                            Resetar
-                        </button>
+                    {/* Modo Expert Toggle Switch */}
+                    <div className="flex items-center justify-between bg-slate-950/40 p-4 border border-slate-800/80 rounded-xl relative overflow-hidden">
+                        <div className="space-y-0.5 text-left">
+                            <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                                <span className={`w-1.5 h-1.5 rounded-full ${isExpertMode ? 'bg-cyan-400 animate-pulse' : 'bg-slate-600'}`} />
+                                Modo Expert / Desenvolvedor
+                            </h4>
+                            <p className="text-[10px] text-slate-500 max-w-[280px]">
+                                Desbloqueia sliders avançados de densidade, suavização Taubin e sementes manuais.
+                            </p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                                type="checkbox" 
+                                checked={isExpertMode}
+                                onChange={(e) => setIsExpertMode(e.target.checked)}
+                                className="sr-only peer"
+                            />
+                            <div className="w-9 h-5 bg-slate-850 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-500 after:border-slate-400 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-500 peer-checked:after:bg-white" />
+                        </label>
                     </div>
 
-                    {/* Geração */}
-                    <div className="space-y-3">
-                        <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Geração</p>
-                        <div>
-                            <label className="flex justify-between text-xs text-slate-400 mb-1">
-                                <span>Passos de Inferência</span>
-                                <span className="text-cyan-400 font-mono font-bold">{settings.steps}</span>
-                            </label>
-                            <input type="range" min="3" max="100" value={settings.steps}
-                                onChange={(e) => handleSettingChange('steps', parseInt(e.target.value))}
-                                className="w-full accent-cyan-500" />
-                            <div className="flex justify-between text-[10px] text-slate-600 mt-0.5">
-                                <span>3 (rápido)</span><span>100 (máxima qualidade)</span>
-                            </div>
+                    {!isExpertMode ? (
+                        <div className="text-center py-6 px-4 bg-slate-950/20 border border-dashed border-slate-800/80 rounded-xl space-y-2">
+                            <Cpu className="w-7 h-7 mx-auto text-slate-600 animate-pulse" />
+                            <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Modo Expert Desativado</h5>
+                            <p className="text-[10px] text-slate-500 max-w-xs mx-auto leading-relaxed">
+                                Você está usando os parâmetros otimizados do Preset selecionado ({PRESETS[activePreset]?.name || 'Personalizado'}). Ative o Modo Expert acima para ajustar densidade de faces, suavização Taubin e sementes manuais.
+                            </p>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="flex justify-between text-xs text-slate-400 mb-1">
-                                    <span>Escala de Orientação</span>
-                                    <span className="text-cyan-400 font-mono font-bold">{settings.guidance}</span>
-                                </label>
-                                <input type="range" min="1" max="20" step="0.5" value={settings.guidance}
-                                    onChange={(e) => handleSettingChange('guidance', parseFloat(e.target.value))}
-                                    className="w-full accent-cyan-500" />
-                            </div>
-                            <div>
-                                <label className="flex justify-between text-xs text-slate-400 mb-1">
-                                    <span>Escala Dupla (DINO)</span>
-                                    <span className="text-cyan-400 font-mono font-bold">{settings.dualGuidance}</span>
-                                </label>
-                                <input type="range" min="1" max="20" step="0.5" value={settings.dualGuidance}
-                                    onChange={(e) => handleSettingChange('dualGuidance', parseFloat(e.target.value))}
-                                    className="w-full accent-cyan-500" />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Malha */}
-                    <div className="space-y-3 pt-3 border-t border-slate-800">
-                        <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Malha 3D</p>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="block text-xs text-slate-400 mb-1.5">Resolução Octree</label>
-                                <div className="flex gap-1.5">
-                                    {[256, 384, 512].map(v => (
-                                        <button key={v}
-                                            onClick={() => handleSettingChange('octreeResolution', v)}
-                                            className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition-all
-                                                ${settings.octreeResolution === v
-                                                    ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400'
-                                                    : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'}`}
-                                        >{v}</button>
-                                    ))}
-                                </div>
-                            </div>
-                            <div>
-                                <label className="flex justify-between text-xs text-slate-400 mb-1">
-                                    <span>Máximo de Faces</span>
-                                    <span className="text-cyan-400 font-mono font-bold">{(settings.maxFaces / 1000).toFixed(0)}K</span>
-                                </label>
-                                <input type="range" min="10000" max="200000" step="10000" value={settings.maxFaces}
-                                    onChange={(e) => handleSettingChange('maxFaces', parseInt(e.target.value))}
-                                    className="w-full accent-cyan-500" />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Exportação */}
-                    <div className="space-y-3 pt-3 border-t border-slate-800">
-                        <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Exportação</p>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="block text-xs text-slate-400 mb-1.5">Formato</label>
-                                <div className="flex gap-1.5">
-                                    {['glb', 'stl', 'obj'].map(fmt => (
-                                        <button key={fmt}
-                                            onClick={() => handleSettingChange('exportFormat', fmt)}
-                                            className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition-all uppercase
-                                                ${settings.exportFormat === fmt
-                                                    ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400'
-                                                    : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'}`}
-                                        >{fmt}</button>
-                                    ))}
-                                </div>
-                                <p className="text-[10px] text-slate-600 mt-1">
-                                    {settings.exportFormat === 'glb' && 'Web, Unity, Unreal'}
-                                    {settings.exportFormat === 'stl' && 'Impressão 3D (FDM/SLA)'}
-                                    {settings.exportFormat === 'obj' && 'Blender, Maya, 3ds Max'}
-                                </p>
-                            </div>
-                            <div>
-                                <label className="block text-xs text-slate-400 mb-1.5">Semente (Opcional)</label>
-                                <input
-                                    type="number"
-                                    placeholder="Aleatório"
-                                    value={settings.seed}
-                                    onChange={(e) => setSettings(prev => ({ ...prev, seed: e.target.value }))}
-                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-cyan-100 placeholder-slate-600 focus:border-cyan-500 outline-none"
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Processamento */}
-                    <div className="space-y-2.5 pt-3 border-t border-slate-800">
-                        <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Processamento</p>
-                        <div className="grid grid-cols-2 gap-2">
-                            {[
-                                { key: 'removeBg', label: 'Remover Fundo', desc: 'Extrai objeto da imagem' },
-                                { key: 'generateTexture', label: 'Gerar Textura', desc: 'Renderização com cor' },
-                                { key: 'useFlashVDM', label: 'Aceleração FlashVDM', desc: 'Geração muito mais rápida' },
-                                { key: 'generateVariations', label: 'Gerar Variações (3x)', desc: 'Cria 3 sementes diferentes' },
-                                { key: 'turboTexture', label: 'Textura Turbo', desc: 'Mais rápido, menos detalhes' },
-                                { key: 'removeFloaters', label: 'Remover Flutuantes', desc: 'Limpa pedaços soltos' },
-                                { key: 'removeDegenerateFaces', label: 'Limpar Faces', desc: 'Remove faces degeneradas' },
-                            ].map(({ key, label, desc }) => (
+                    ) : (
+                        <>
+                            <div className="flex items-center justify-between">
+                                <h4 className="text-sm font-bold text-slate-300 flex items-center gap-2">
+                                    <Cpu className="w-4 h-4 text-cyan-400" />
+                                    Configurações Avançadas
+                                </h4>
                                 <button
-                                    key={key}
-                                    onClick={() => handleSettingChange(key, !settings[key])}
-                                    className={`flex items-start gap-2.5 p-2.5 rounded-lg border text-left transition-all
-                                        ${settings[key]
-                                            ? 'bg-cyan-500/10 border-cyan-500/30'
-                                            : 'bg-slate-800/50 border-slate-700/50 opacity-60 hover:opacity-80'}`}
+                                    onClick={() => { setSettings({ ...DEFAULT_SETTINGS }); setActivePreset('standard'); }}
+                                    className="text-[11px] text-slate-500 hover:text-slate-300 flex items-center gap-1 transition-colors"
                                 >
-                                    <div className={`w-4 h-4 mt-0.5 rounded border-2 flex items-center justify-center shrink-0 transition-colors
-                                        ${settings[key] ? 'bg-cyan-500 border-cyan-500' : 'border-slate-600'}`}>
-                                        {settings[key] && <span className="text-[10px] text-white font-bold">✓</span>}
+                                    <RotateCcw className="w-3 h-3" />
+                                    Resetar
+                                </button>
+                            </div>
+
+                            {/* Geração */}
+                            <div className="space-y-3 text-left">
+                                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Geração</p>
+                                <div>
+                                    <label className="flex justify-between text-xs text-slate-400 mb-1">
+                                        <span>Passos de Inferência</span>
+                                        <span className="text-cyan-400 font-mono font-bold">{settings.steps}</span>
+                                    </label>
+                                    <input type="range" min="3" max="100" value={settings.steps}
+                                        onChange={(e) => handleSettingChange('steps', parseInt(e.target.value))}
+                                        className="w-full accent-cyan-500" />
+                                    <div className="flex justify-between text-[10px] text-slate-600 mt-0.5">
+                                        <span>3 (rápido)</span><span>100 (máxima qualidade)</span>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="flex justify-between text-xs text-slate-400 mb-1">
+                                            <span>Escala de Orientação</span>
+                                            <span className="text-cyan-400 font-mono font-bold">{settings.guidance}</span>
+                                        </label>
+                                        <input type="range" min="1" max="20" step="0.5" value={settings.guidance}
+                                            onChange={(e) => handleSettingChange('guidance', parseFloat(e.target.value))}
+                                            className="w-full accent-cyan-500" />
                                     </div>
                                     <div>
-                                        <p className="text-xs font-medium text-slate-300">{label}</p>
-                                        <p className="text-[10px] text-slate-500 leading-tight">{desc}</p>
+                                        <label className="flex justify-between text-xs text-slate-400 mb-1">
+                                            <span>Escala Dupla (DINO)</span>
+                                            <span className="text-cyan-400 font-mono font-bold">{settings.dualGuidance}</span>
+                                        </label>
+                                        <input type="range" min="1" max="20" step="0.5" value={settings.dualGuidance}
+                                            onChange={(e) => handleSettingChange('dualGuidance', parseFloat(e.target.value))}
+                                            className="w-full accent-cyan-500" />
                                     </div>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                                </div>
+                            </div>
+
+                            {/* Malha */}
+                            <div className="space-y-3 pt-3 border-t border-slate-800 text-left">
+                                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Malha 3D & Densidade</p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-xs text-slate-400 mb-1.5">Resolução Octree</label>
+                                        <div className="flex gap-1.5">
+                                            {[256, 384, 512].map(v => (
+                                                <button key={v}
+                                                    onClick={() => handleSettingChange('octreeResolution', v)}
+                                                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition-all
+                                                        ${settings.octreeResolution === v
+                                                            ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400'
+                                                            : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'}`}
+                                                >{v}</button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="flex justify-between text-xs text-slate-400 mb-1">
+                                            <span>Densidade (Máx Faces)</span>
+                                            <span className="text-cyan-400 font-mono font-bold">{(settings.maxFaces / 1000).toFixed(0)}K</span>
+                                        </label>
+                                        <input type="range" min="10000" max="200000" step="10000" value={settings.maxFaces}
+                                            onChange={(e) => handleSettingChange('maxFaces', parseInt(e.target.value))}
+                                            className="w-full accent-cyan-500" />
+                                    </div>
+                                </div>
+                                <div className="pt-2">
+                                    <label className="flex justify-between text-xs text-slate-400 mb-1">
+                                        <span>Suavidade da Malha (Passos Taubin)</span>
+                                        <span className="text-cyan-400 font-mono font-bold">
+                                            {settings.smoothingSteps === 0 ? 'Sem Suavização' : `${settings.smoothingSteps} passos`}
+                                        </span>
+                                    </label>
+                                    <input type="range" min="0" max="20" step="1" value={settings.smoothingSteps}
+                                        onChange={(e) => handleSettingChange('smoothingSteps', parseInt(e.target.value))}
+                                        className="w-full accent-cyan-500" />
+                                    <div className="flex justify-between text-[10px] text-slate-600 mt-0.5">
+                                        <span>0 (Malha Bruta/Original)</span><span>20 (Máxima Suavidade)</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Exportação */}
+                            <div className="space-y-3 pt-3 border-t border-slate-800 text-left">
+                                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Exportação</p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-xs text-slate-400 mb-1.5">Formato</label>
+                                        <div className="flex gap-1.5">
+                                            {['glb', 'stl', 'obj'].map(fmt => (
+                                                <button key={fmt}
+                                                    onClick={() => handleSettingChange('exportFormat', fmt)}
+                                                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition-all uppercase
+                                                        ${settings.exportFormat === fmt
+                                                            ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400'
+                                                            : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'}`}
+                                                >{fmt}</button>
+                                            ))}
+                                        </div>
+                                        <p className="text-[10px] text-slate-600 mt-1">
+                                            {settings.exportFormat === 'glb' && 'Web, Unity, Unreal'}
+                                            {settings.exportFormat === 'stl' && 'Impressão 3D (FDM/SLA)'}
+                                            {settings.exportFormat === 'obj' && 'Blender, Maya, 3ds Max'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-400 mb-1.5">Semente (Opcional)</label>
+                                        <input
+                                            type="number"
+                                            placeholder="Aleatório"
+                                            value={settings.seed}
+                                            onChange={(e) => setSettings(prev => ({ ...prev, seed: e.target.value }))}
+                                            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-cyan-100 placeholder-slate-600 focus:border-cyan-500 outline-none"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Processamento */}
+                            <div className="space-y-2.5 pt-3 border-t border-slate-800 text-left">
+                                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Processamento</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {[
+                                        { key: 'removeBg', label: 'Remover Fundo', desc: 'Extrai objeto da imagem' },
+                                        { key: 'generateTexture', label: 'Gerar Textura', desc: 'Renderização com cor' },
+                                        { key: 'useFlashVDM', label: 'Aceleração FlashVDM', desc: 'Geração muito mais rápida' },
+                                        { key: 'generateVariations', label: 'Gerar Variações (3x)', desc: 'Cria 3 sementes diferentes' },
+                                        { key: 'turboTexture', label: 'Textura Turbo', desc: 'Mais rápido, menos detalhes' },
+                                        { key: 'removeFloaters', label: 'Remover Flutuantes', desc: 'Limpa pedaços soltos' },
+                                        { key: 'removeDegenerateFaces', label: 'Limpar Faces', desc: 'Remove faces degeneradas' },
+                                    ].map(({ key, label, desc }) => (
+                                        <button
+                                            key={key}
+                                            onClick={() => handleSettingChange(key, !settings[key])}
+                                            className={`flex items-start gap-2.5 p-2.5 rounded-lg border text-left transition-all
+                                                ${settings[key]
+                                                    ? 'bg-cyan-500/10 border-cyan-500/30'
+                                                    : 'bg-slate-800/50 border-slate-700/50 opacity-60 hover:opacity-80'}`}
+                                        >
+                                            <div className={`w-4 h-4 mt-0.5 rounded border-2 flex items-center justify-center shrink-0 transition-colors
+                                                ${settings[key] ? 'bg-cyan-500 border-cyan-500' : 'border-slate-600'}`}>
+                                                {settings[key] && <span className="text-[10px] text-white font-bold">✓</span>}
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-medium text-slate-300">{label}</p>
+                                                <p className="text-[10px] text-slate-500 leading-tight">{desc}</p>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
             )}
 

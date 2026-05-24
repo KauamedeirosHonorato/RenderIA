@@ -1,9 +1,27 @@
 import React, { Suspense, useState, useEffect, Component } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stage, useGLTF, Html, ContactShadows, Environment } from '@react-three/drei';
+import { Layers } from 'lucide-react';
 
-function Model({ url }) {
+function Model({ url, isWireframe }) {
     const { scene } = useGLTF(url);
+
+    useEffect(() => {
+        if (scene) {
+            scene.traverse((child) => {
+                if (child.isMesh) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(mat => {
+                            mat.wireframe = isWireframe;
+                        });
+                    } else if (child.material) {
+                        child.material.wireframe = isWireframe;
+                    }
+                }
+            });
+        }
+    }, [scene, isWireframe]);
+
     return <primitive object={scene} />;
 }
 
@@ -60,6 +78,7 @@ const ModelViewer = ({ modelUrl }) => {
     const [blobUrl, setBlobUrl] = useState(null);
     const [error, setError] = useState(null);
     const [loadingMsg, setLoadingMsg] = useState('Baixando modelo 3D...');
+    const [isWireframe, setIsWireframe] = useState(false);
 
     useEffect(() => {
         if (!modelUrl) return;
@@ -161,6 +180,21 @@ const ModelViewer = ({ modelUrl }) => {
                 <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-[100px] pointer-events-none mix-blend-screen" />
                 <div className="absolute inset-0 bg-[linear-gradient(rgba(30,41,59,0.3)_1px,transparent_1px),linear-gradient(90deg,rgba(30,41,59,0.3)_1px,transparent_1px)] bg-[size:50px_50px] opacity-30 pointer-events-none" />
 
+                {/* Controls overlay */}
+                <div className="absolute top-4 right-4 z-10 flex gap-2">
+                    <button
+                        onClick={() => setIsWireframe(!isWireframe)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold font-mono transition-all flex items-center gap-1.5 border backdrop-blur-md shadow-md ${
+                            isWireframe 
+                                ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.2)]'
+                                : 'bg-slate-900/80 border-slate-700 text-slate-300 hover:text-white'
+                        }`}
+                    >
+                        <Layers className="w-3.5 h-3.5" />
+                        {isWireframe ? 'WIREFRAME: ATIVO' : 'MODO WIREFRAME'}
+                    </button>
+                </div>
+
                 <Canvas shadows camera={{ position: [5, 3, 10], fov: 35 }} gl={{ preserveDrawingBuffer: true, antialias: true }}>
                     <Suspense fallback={<Loader />}>
                         <ambientLight intensity={0.4} />
@@ -168,7 +202,7 @@ const ModelViewer = ({ modelUrl }) => {
                         <directionalLight position={[-5, 5, -5]} intensity={0.5} color="#4f46e5" />
 
                         <Stage environment="studio" intensity={0.8} adjustCamera={1.2}>
-                            <Model url={blobUrl} />
+                            <Model url={blobUrl} isWireframe={isWireframe} />
                         </Stage>
 
                         <ContactShadows position={[0, -0.5, 0]} opacity={0.6} scale={10} blur={2.5} far={4} color="#000000" />
