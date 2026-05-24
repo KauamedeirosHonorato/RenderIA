@@ -1,18 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, googleProvider, db } from '../firebase';
 import { Cuboid, Mail, Lock, User, ArrowRight, Loader2 } from 'lucide-react';
+import { useAuthState } from '../hooks/useAuth';
 
 const LoginPage = () => {
     const navigate = useNavigate();
+    const { user, loading: authLoading } = useAuthState();
     const [isRegister, setIsRegister] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+
+    // Redirect user if they are already logged in
+    useEffect(() => {
+        if (!authLoading && user) {
+            navigate('/');
+        }
+    }, [user, authLoading, navigate]);
+
+    if (authLoading) {
+        return (
+            <div className="min-h-[70vh] flex flex-col items-center justify-center">
+                <Loader2 className="w-8 h-8 text-cyan-500 animate-spin mb-4" />
+                <p className="text-slate-400 text-sm font-mono">Verificando sessão...</p>
+            </div>
+        );
+    }
 
     const saveUserToFirestore = async (user) => {
         const userRef = doc(db, 'users', user.uid);
@@ -34,7 +52,7 @@ const LoginPage = () => {
         try {
             const result = await signInWithPopup(auth, googleProvider);
             try { await saveUserToFirestore(result.user); } catch (e) { console.warn('Firestore save skipped:', e.message); }
-            navigate('/generate');
+            navigate('/');
         } catch (err) {
             console.error(err);
             if (err.code === 'auth/popup-closed-by-user') {
@@ -59,7 +77,7 @@ const LoginPage = () => {
             } else {
                 await signInWithEmailAndPassword(auth, email, password);
             }
-            navigate('/generate');
+            navigate('/');
         } catch (err) {
             console.error(err);
             const messages = {
