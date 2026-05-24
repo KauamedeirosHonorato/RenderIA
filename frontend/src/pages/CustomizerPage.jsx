@@ -10,6 +10,8 @@ import {
     Layers, AlertCircle, CheckCircle, RotateCw, ZoomIn,
     Save, Coffee, Box
 } from 'lucide-react';
+import { db, auth } from '../firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 // ═══════════════════════════════════════════════
 // Sub-Components inside R3F Canvas
@@ -850,12 +852,15 @@ const CustomizerPage = () => {
         { name: 'Rosa Coral', color: '#f43f5e' },
     ];
 
-    // Save mockup to local storage
+    // Save mockup to local storage & Firestore Gallery
     const handleSaveMockup = () => {
         try {
+            const user = auth.currentUser;
+            const mockupId = `mockup_${Date.now()}`;
             const saved = JSON.parse(localStorage.getItem('nexa_saved_mockups') || '[]');
+            
             const newMockup = {
-                id: `mockup_${Date.now()}`,
+                id: mockupId,
                 name: `Design ${productType.charAt(0).toUpperCase() + productType.slice(1)} - ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}`,
                 timestamp: new Date().toISOString(),
                 productType,
@@ -876,10 +881,25 @@ const CustomizerPage = () => {
                 liquidLevel,
                 individualHandle,
                 handleDecalUrl,
-                handleDecalSize
+                handleDecalSize,
+                userId: user ? user.uid : 'anonymous',
+                userDisplayName: user ? user.displayName : 'Anônimo',
+                isPublic: true // make it public by default so it shows up in the community gallery!
             };
+            
             saved.push(newMockup);
             localStorage.setItem('nexa_saved_mockups', JSON.stringify(saved));
+            
+            // 2. Save to Firestore (only if not in Mock Mode)
+            if (db) {
+                const firestoreMockup = { ...newMockup };
+                firestoreMockup.createdAt = serverTimestamp();
+                
+                setDoc(doc(db, 'custom_mockups', mockupId), firestoreMockup)
+                    .then(() => console.log("Mockup customizado salvo com sucesso no Firestore!"))
+                    .catch(err => console.error("Erro ao salvar mockup no Firestore:", err));
+            }
+            
             setSaveSuccess(true);
             setTimeout(() => setSaveSuccess(false), 2500);
         } catch (err) {
