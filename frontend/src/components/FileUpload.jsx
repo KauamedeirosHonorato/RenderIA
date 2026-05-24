@@ -85,6 +85,7 @@ const DEFAULT_SETTINGS = {
     generateVariations: false, // Phase 4 feature
     generateTexture: true, // Phase 4 feature
     smoothingSteps: 0, // NEW: default 0 (no smoothing)
+    optimize3dPrint: false, // NEW: default false (optimize watertight/solid mesh)
 };
 
 const FileUpload = ({ onUploadSuccess }) => {
@@ -192,6 +193,7 @@ const FileUpload = ({ onUploadSuccess }) => {
         formData.append("use_flash_vdm", settings.useFlashVDM);
         formData.append("generate_variations", settings.generateVariations);
         formData.append("generate_texture", settings.generateTexture);
+        formData.append("optimize_3dprint", settings.optimize3dPrint);
 
         try {
             const response = await axios.post(`${API_BASE_URL}/generate`, formData, {
@@ -667,6 +669,7 @@ const FileUpload = ({ onUploadSuccess }) => {
                                         { key: 'turboTexture', label: 'Textura Turbo', desc: 'Mais rápido, menos detalhes' },
                                         { key: 'removeFloaters', label: 'Remover Flutuantes', desc: 'Limpa pedaços soltos' },
                                         { key: 'removeDegenerateFaces', label: 'Limpar Faces', desc: 'Remove faces degeneradas' },
+                                        { key: 'optimize3dPrint', label: 'Impressão 3D Sólida', desc: 'Fecha furos e solidifica malha' },
                                     ].map(({ key, label, desc }) => (
                                         <button
                                             key={key}

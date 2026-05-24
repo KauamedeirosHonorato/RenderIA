@@ -4,11 +4,12 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Stage, ContactShadows, Environment, Decal, useTexture, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
+import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js';
 import { 
     Cuboid, Palette, Image as ImageIcon, Sliders, 
     Download, RefreshCw, Upload, Sparkles, Move,
     Layers, AlertCircle, CheckCircle, RotateCw, ZoomIn,
-    Save, Coffee, Box
+    Save, Coffee, Box, Printer
 } from 'lucide-react';
 import { db, auth } from '../firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -786,6 +787,14 @@ const CustomizerPage = () => {
     const [saveSuccess, setSaveSuccess] = useState(false);
     const fileInputRef = useRef(null);
 
+    // 3D Printing States
+    const [showPrintBed, setShowPrintBed] = useState(false);
+    const [printHeight, setPrintHeight] = useState(100); // 100mm default
+    const [printInfill, setPrintInfill] = useState(15); // 15% default
+    const [printLayerHeight, setPrintLayerHeight] = useState(0.20); // 0.20mm default
+    const [isExportingStl, setIsExportingStl] = useState(false);
+    const [exportStlSuccess, setExportStlSuccess] = useState(false);
+
     // Dynamic state updates when location changes
     useEffect(() => {
         if (location.state?.loadMockup) {
@@ -1035,6 +1044,79 @@ const CustomizerPage = () => {
         );
     };
 
+    // Export 3D Model as STL for 3D Printing (clean and solidified)
+    const handleDownloadSTL = (exportType = 'all') => {
+        if (!productGroupRef.current) {
+            alert("O modelo 3D ainda não foi carregado completamente.");
+            return;
+        }
+
+        setIsExportingStl(true);
+        try {
+            // 1. Clone the product group to perform clean exports
+            const clonedGroup = productGroupRef.current.clone(true);
+            
+            // If exporting only the ornament, let's find the mesh named "Adorno_3D_IA"
+            let exportTarget = clonedGroup;
+            
+            if (exportType === 'ornament') {
+                let foundOrn = null;
+                clonedGroup.traverse((child) => {
+                    if (child.name === 'Adorno_3D_IA' || child.name === 'Adorno_3D_Malha') {
+                        // Find the highest-level primitive or group for the ornament
+                        foundOrn = child;
+                    }
+                });
+                
+                if (!foundOrn) {
+                    alert("Nenhum adorno 3D IA foi encontrado neste produto para exportação isolada.");
+                    setIsExportingStl(false);
+                    return;
+                }
+                
+                // We must reset position and rotation of the ornament if exporting it isolated
+                // so it centers perfectly on the print bed in the slicer!
+                foundOrn.position.set(0, 0, 0);
+                foundOrn.rotation.set(0, 0, 0);
+                foundOrn.scale.set(1, 1, 1);
+                exportTarget = foundOrn;
+            } else {
+                // Remove non-printable procedural liquid mesh and decals
+                const meshesToRemove = [];
+                clonedGroup.traverse((child) => {
+                    if (child.isMesh && (
+                        child.name.includes("Liquido") || 
+                        child.name.includes("projected-decal")
+                    )) {
+                        meshesToRemove.push(child);
+                    }
+                });
+                meshesToRemove.forEach(m => {
+                    if (m.parent) m.parent.remove(m);
+                });
+            }
+
+            const exporter = new STLExporter();
+            const result = exporter.parse(exportTarget, { binary: true });
+            
+            const blob = new Blob([result], { type: 'application/octet-stream' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `impressao_3d_${exportType === 'ornament' ? 'adorno' : productType}_${Date.now()}.stl`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            setIsExportingStl(false);
+            setExportStlSuccess(true);
+            setTimeout(() => setExportStlSuccess(false), 3000);
+        } catch (error) {
+            console.error("STL Export failed:", error);
+            setIsExportingStl(false);
+            alert("Erro ao exportar STL. Tente novamente.");
+        }
+    };
+
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
             {/* Header Title */}
@@ -1123,6 +1205,13 @@ const CustomizerPage = () => {
 
                                     <ContactShadows position={[0, -1.05, 0]} opacity={0.6} scale={6} blur={2.2} far={3} color="#000000" />
                                     <Environment preset="city" />
+
+                                    {showPrintBed && (
+                                        <gridHelper 
+                                            args={[2.2, 22, '#06b6d4', '#1e293b']}
+                                            position={[0, -1.055, 0]}
+                                        />
+                                    )}
                                 </Suspense>
 
                                 <OrbitControls 
@@ -1183,37 +1272,29 @@ const CustomizerPage = () => {
                     <div className="glass rounded-2xl flex-1 p-5 shadow-lg border border-slate-800/80 flex flex-col min-h-[400px]">
                         
                         {/* Tab Switcher */}
-                        <div className="flex border-b border-slate-800 pb-3 mb-5 gap-1">
-                            <button
-                                onClick={() => setActiveTab('appearance')}
-                                className={`flex-1 pb-2 text-xs font-bold tracking-wider uppercase border-b-2 transition-all flex items-center justify-center gap-2 ${
-                                    activeTab === 'appearance' 
-                                        ? 'border-cyan-400 text-cyan-400' 
-                                        : 'border-transparent text-slate-500 hover:text-slate-300'
-                                }`}
-                            >
-                                <Palette className="w-3.5 h-3.5" /> Aparência
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('decal')}
-                                className={`flex-1 pb-2 text-xs font-bold tracking-wider uppercase border-b-2 transition-all flex items-center justify-center gap-2 ${
-                                    activeTab === 'decal' 
-                                        ? 'border-cyan-400 text-cyan-400' 
-                                        : 'border-transparent text-slate-500 hover:text-slate-300'
-                                }`}
-                            >
-                                <ImageIcon className="w-3.5 h-3.5" /> Estampa (Decal)
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('ornament')}
-                                className={`flex-1 pb-2 text-xs font-bold tracking-wider uppercase border-b-2 transition-all flex items-center justify-center gap-2 ${
-                                    activeTab === 'ornament' 
-                                        ? 'border-cyan-400 text-cyan-400' 
-                                        : 'border-transparent text-slate-500 hover:text-slate-300'
-                                }`}
-                            >
-                                <Sparkles className="w-3.5 h-3.5" /> Adorno 3D
-                            </button>
+                        <div className="flex border-b border-slate-800 pb-3 mb-5 gap-1 overflow-x-auto scrollbar-none">
+                            {[
+                                { id: 'appearance', label: 'Aparência', icon: Palette },
+                                { id: 'decal', label: 'Estampa', icon: ImageIcon },
+                                { id: 'ornament', label: 'Adorno 3D', icon: Sparkles },
+                                { id: 'print3d', label: 'Impressão 3D', icon: Printer },
+                            ].map((tab) => {
+                                const Icon = tab.icon;
+                                return (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id)}
+                                        className={`flex-1 min-w-[70px] pb-2 text-[10px] font-bold tracking-wider uppercase border-b-2 transition-all flex flex-col sm:flex-row items-center justify-center gap-1.5 ${
+                                            activeTab === tab.id 
+                                                ? 'border-cyan-400 text-cyan-400' 
+                                                : 'border-transparent text-slate-500 hover:text-slate-300'
+                                        }`}
+                                    >
+                                        <Icon className="w-3.5 h-3.5" />
+                                        <span>{tab.label}</span>
+                                    </button>
+                                );
+                            })}
                         </div>
 
                         {/* --- TAB CONTENT --- */}
@@ -1738,6 +1819,194 @@ const CustomizerPage = () => {
                                                 </p>
                                             </div>
                                         )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === 'print3d' && (
+                                <div className="space-y-5 animate-fade-in text-left">
+                                    {/* 3D Print Status and Grid */}
+                                    <div className="flex items-center justify-between p-3.5 bg-slate-900/30 border border-slate-800 rounded-xl">
+                                        <div>
+                                            <p className="text-xs font-bold text-slate-300">Grade da Mesa de Impressão</p>
+                                            <p className="text-[10px] text-slate-500 max-w-xs mt-0.5">
+                                                Visualizar modelo em uma mesa de 220x220mm (1 quadrado = 1x1cm reais).
+                                            </p>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={showPrintBed}
+                                                onChange={(e) => setShowPrintBed(e.target.checked)}
+                                                className="sr-only peer"
+                                            />
+                                            <div className="w-9 h-5 bg-slate-850 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-500 after:border-slate-400 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-500 peer-checked:after:bg-white" />
+                                        </label>
+                                    </div>
+
+                                    {/* Real-world Scaling Wizard */}
+                                    <div className="space-y-3.5 p-4 bg-slate-900/40 border border-slate-850 rounded-2xl">
+                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                            <Printer className="w-3.5 h-3.5 text-cyan-400" /> Dimensionamento Real (mm)
+                                        </p>
+                                        
+                                        <div>
+                                            <div className="flex justify-between text-xs text-slate-300 font-semibold mb-1">
+                                                <span>Altura Desejada</span>
+                                                <span className="text-cyan-400 font-mono font-bold">{printHeight} mm</span>
+                                            </div>
+                                            <input 
+                                                type="range" min="30" max="200" step="5"
+                                                value={printHeight} 
+                                                onChange={(e) => setPrintHeight(parseInt(e.target.value))}
+                                                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+                                            />
+                                            <div className="flex justify-between text-[9px] text-slate-500 mt-1 font-mono">
+                                                <span>30 mm (Mini)</span>
+                                                <span>200 mm (Máximo)</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Physical Specs Box */}
+                                        <div className="bg-slate-950/40 border border-slate-850 rounded-xl p-3 grid grid-cols-3 gap-2 text-center text-xs">
+                                            <div>
+                                                <span className="block text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Altura</span>
+                                                <span className="font-mono text-cyan-200 font-bold">{printHeight} mm</span>
+                                            </div>
+                                            <div>
+                                                <span className="block text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Largura</span>
+                                                <span className="font-mono text-cyan-200 font-bold">
+                                                    {productType === 'chicara' ? Math.round(printHeight * 1.4) : productType === 'copo' ? Math.round(printHeight * 0.45) : printHeight} mm
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <span className="block text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Profundidade</span>
+                                                <span className="font-mono text-cyan-200 font-bold">
+                                                    {productType === 'chicara' ? Math.round(printHeight * 1.4) : productType === 'copo' ? Math.round(printHeight * 0.45) : printHeight} mm
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Slicer Settings and Estimates */}
+                                    <div className="space-y-4 p-4 bg-slate-900/40 border border-slate-850 rounded-2xl">
+                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                            <Sliders className="w-3.5 h-3.5 text-indigo-400" /> Parâmetros de Fatiamento (Estimativas)
+                                        </p>
+
+                                        {/* Infill */}
+                                        <div>
+                                            <div className="flex justify-between text-xs text-slate-300 font-semibold mb-1">
+                                                <span>Preenchimento (Infill)</span>
+                                                <span className="text-indigo-300 font-mono font-bold">{printInfill}%</span>
+                                            </div>
+                                            <input 
+                                                type="range" min="5" max="60" step="5"
+                                                value={printInfill} 
+                                                onChange={(e) => setPrintInfill(parseInt(e.target.value))}
+                                                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-400"
+                                            />
+                                        </div>
+
+                                        {/* Layer Height Select */}
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1.5">Altura de Camada (Resolução)</label>
+                                            <div className="flex gap-1.5">
+                                                {[
+                                                    { v: 0.12, label: '0.12 Ultra' },
+                                                    { v: 0.16, label: '0.16 Alta' },
+                                                    { v: 0.20, label: '0.20 Normal' },
+                                                    { v: 0.28, label: '0.28 Rápido' }
+                                                ].map(opt => (
+                                                    <button key={opt.v}
+                                                        onClick={() => setPrintLayerHeight(opt.v)}
+                                                        className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition-all
+                                                            ${printLayerHeight === opt.v
+                                                                ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-400'
+                                                                : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'}`}
+                                                    >{opt.label}</button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Calculation Output Box */}
+                                        {(() => {
+                                            let printWidth = printHeight;
+                                            if (productType === 'chicara') {
+                                                printWidth = Math.round(printHeight * 1.4);
+                                            } else if (productType === 'copo') {
+                                                printWidth = Math.round(printHeight * 0.45);
+                                            }
+                                            let volumeCm3 = 0;
+                                            if (productType === 'caneca') {
+                                                volumeCm3 = Math.PI * (Math.pow(printWidth/20, 2) - Math.pow(printWidth/20 - 0.4, 2)) * (printHeight/10);
+                                            } else if (productType === 'chicara') {
+                                                volumeCm3 = Math.PI * (Math.pow(printWidth/20, 2) - Math.pow(printWidth/20 - 0.35, 2)) * (printHeight/10);
+                                            } else { // copo
+                                                volumeCm3 = Math.PI * (Math.pow(printWidth/20, 2) - Math.pow(printWidth/20 - 0.3, 2)) * (printHeight/10);
+                                            }
+                                            if (ornamentUrl) {
+                                                volumeCm3 += (printHeight * printHeight * printHeight / 8000) * (ornScale * 2);
+                                            }
+                                            const infillFactor = (printInfill / 100) * 0.4 + 0.6;
+                                            let weightGrams = Math.round(volumeCm3 * 1.24 * infillFactor);
+                                            if (weightGrams < 5) weightGrams = 15;
+                                            
+                                            const rate = printLayerHeight === 0.12 ? 8 : printLayerHeight === 0.16 ? 12 : printLayerHeight === 0.20 ? 15 : 22;
+                                            const totalMinutes = Math.round((weightGrams / rate) * 60);
+                                            const hours = Math.floor(totalMinutes / 60);
+                                            const minutes = totalMinutes % 60;
+                                            
+                                            return (
+                                                <div className="grid grid-cols-2 gap-3 p-3 bg-slate-950/50 border border-slate-850 rounded-xl text-xs font-medium">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xl">⚖️</span>
+                                                        <div>
+                                                            <span className="block text-[9px] text-slate-500 uppercase font-semibold">Peso Estimado</span>
+                                                            <span className="font-mono text-cyan-300 font-bold">{weightGrams}g de PLA</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xl">⏱️</span>
+                                                        <div>
+                                                            <span className="block text-[9px] text-slate-500 uppercase font-semibold">Tempo de Impressão</span>
+                                                            <span className="font-mono text-cyan-300 font-bold">{hours}h {minutes}m</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+
+                                    {/* Download STL Action Buttons */}
+                                    <div className="space-y-2.5">
+                                        <button
+                                            onClick={() => handleDownloadSTL('all')}
+                                            disabled={isExportingStl}
+                                            className="w-full flex items-center justify-center gap-2.5 py-3.5 bg-gradient-to-r from-emerald-500 via-teal-600 to-cyan-600 hover:opacity-95 text-white font-bold text-xs rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.15)] transition-all"
+                                        >
+                                            <Download className="w-4 h-4" />
+                                            {isExportingStl ? "Exportando STL..." : "Baixar Produto Completo (.STL)"}
+                                        </button>
+                                        
+                                        {ornamentUrl && (
+                                            <button
+                                                onClick={() => handleDownloadSTL('ornament')}
+                                                disabled={isExportingStl}
+                                                className="w-full flex items-center justify-center gap-2.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs rounded-xl transition-all"
+                                            >
+                                                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                                                Baixar Apenas Adorno IA (.STL)
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Disclaimer Food Safe */}
+                                    <div className="p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl flex gap-2.5">
+                                        <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                                        <p className="text-[10px] text-slate-400 leading-normal">
+                                            <span className="font-bold text-amber-500">Nota Food-Safe:</span> Plásticos impressos em 3D possuem microfissuras que acumulam bactérias e não são inerentemente seguros para alimentação. Para uso com bebidas quentes/frias, utilize filamentos adequados e aplique uma camada selante epóxi profissional certificada (Food-Safe).
+                                        </p>
                                     </div>
                                 </div>
                             )}
