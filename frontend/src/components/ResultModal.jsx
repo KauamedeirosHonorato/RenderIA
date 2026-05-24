@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Download, X, Clock, Layers, CheckCircle2, XCircle, Ruler, HelpCircle, Share2, Check } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Download, X, Clock, Layers, CheckCircle2, XCircle, Ruler, HelpCircle, Share2, Check, Sparkles } from 'lucide-react';
 import ModelViewer from './ModelViewer';
 import { API_BASE_URL } from '../config';
 
 const ResultModal = ({ isOpen, onClose, modelUrl, taskInfo }) => {
+    const navigate = useNavigate();
     if (!isOpen) return null;
 
     const stats = taskInfo?.mesh_stats || {};
@@ -113,6 +115,24 @@ const ResultModal = ({ isOpen, onClose, modelUrl, taskInfo }) => {
                             <span className="hidden sm:inline">{copied ? 'Copiado!' : 'Compartilhar'}</span>
                         </button>
                     </div>
+
+                    {/* Botão de Customizador de Produtos */}
+                    <button
+                        onClick={() => {
+                            onClose();
+                            // Pass the model GLB URL and try to pass a rendering PNG if available
+                            navigate('/customizer', {
+                                state: {
+                                    modelUrl: modelUrl,
+                                    textureUrl: modelUrl ? modelUrl.replace(/\.[^.]+$/, '.png') : null
+                                }
+                            });
+                        }}
+                        className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 hover:opacity-95 text-white font-bold text-xs rounded-xl shadow-[0_0_20px_rgba(219,39,119,0.2)] hover:shadow-[0_0_30px_rgba(219,39,119,0.4)] transition-all transform hover:-translate-y-0.5"
+                    >
+                        <Sparkles className="w-4 h-4 animate-pulse" />
+                        Simular em Caneca / Copo ☕
+                    </button>
 
                     {/* ═══ Stats ═══ */}
                     <div className="space-y-2.5">

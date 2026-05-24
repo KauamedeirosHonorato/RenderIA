@@ -12,6 +12,7 @@ const Navbar = () => {
     const links = [
         { to: '/', label: 'Início' },
         { to: '/generate', label: 'Gerar' },
+        { to: '/customizer', label: 'Customizar 3D' },
         { to: '/gallery', label: 'Galeria' },
     ];
 

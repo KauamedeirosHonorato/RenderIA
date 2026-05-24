@@ -68,15 +68,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Nexa 3D Gen API", lifespan=lifespan)
 
 # CORS Setup
-# CORS Setup
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "https://render-ia-two.vercel.app",
-        "https://renderia.vercel.app"
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

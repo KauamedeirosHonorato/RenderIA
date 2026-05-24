@@ -16,9 +16,15 @@ frontend/node_modules/
 
 # === Environment ===
 .env
+.env.*
+*.env
+*.env.*
 .env.local
 .env.production
+.env.development
+.env.staging
 frontend/.env
+frontend/.env.*
 frontend/.env.local
 
 # === IDE ===
@@ -37,9 +43,14 @@ desktop.ini
 Hunyuan3D-2/weights/
 
 # === Generated Files ===
+uploads/
+models/
 backend/uploads/
 backend/models/
 Hunyuan3D-2/outputs*/
+*.log
+backend_error.log
+gpu_info.txt
 
 # === LFS (not needed anymore) ===
 .gitattributes

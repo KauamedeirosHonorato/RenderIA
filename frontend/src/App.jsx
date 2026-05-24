@@ -40,6 +40,102 @@ const formatTime = (s) => {
   return `${min}:${sec.toString().padStart(2, '0')}`;
 };
 
+// Simulated Real-Time Developer Console Logs during GPU Inferencing
+const ConsoleLogs = ({ currentStep }) => {
+  const LOGS_DATABASE = [
+    // Step 0: Inicializando Modelo IA
+    [
+      "[SYS] Connecting to CUDA core acceleration...",
+      "[SYS] VRAM allocation: 11.2GB/16GB allocated.",
+      "[IA] Loading Hunyuan3D-2 weight checkpoints...",
+      "[IA] Initializing Diffusion Transformer (DiT) structures...",
+      "[IA] Flow matching scheduler compiled successfully."
+    ],
+    // Step 1: Gerando Geometria
+    [
+      "[IA] Flow Matching Euler interpolation started.",
+      "[IA] Step 5/30: sampling latent fields...",
+      "[IA] Step 15/30: mapping 3D density lattices...",
+      "[IA] Step 25/30: resolving geometric volumes...",
+      "[IA] Step 30/30: Euler integration complete.",
+      "[MESH] Constructing raw vertex coordinates...",
+      "[MESH] Executing Marching Cubes algorithm...",
+      "[MESH] Created 142,804 vertices and 285,110 faces successfully."
+    ],
+    // Step 2: Texturizando Objeto
+    [
+      "[MESH] Removing floating particles and micro-islands...",
+      "[MESH] UV Projection: unwrapping coordinates with xatlas...",
+      "[TEX] Generating 2D projection views from 6 orthogonal cameras...",
+      "[TEX] Projecting color maps onto unwrapped UV layout channels...",
+      "[TEX] Consolidating pixel values into a high-res diffuse texture atlas..."
+    ],
+    // Step 3: Finalizando Modelo
+    [
+      "[MESH] Consolidating vertex buffer layout structures...",
+      "[MESH] Optimizing mesh topology for web sRGB rendering...",
+      "[SYS] Packing geometric buffers and textures into .GLB binary file...",
+      "[SYS] Task complete! Model URL response generated."
+    ]
+  ];
+
+  const [logs, setLogs] = useState([]);
+
+  useEffect(() => {
+    setLogs([]);
+    let activeLogs = [];
+    // Add logs from all past completed steps instantly
+    for (let i = 0; i < currentStep; i++) {
+      if (LOGS_DATABASE[i]) activeLogs = [...activeLogs, ...LOGS_DATABASE[i]];
+    }
+    setLogs(activeLogs);
+
+    // Progressively append current step logs
+    const currentBatch = LOGS_DATABASE[currentStep];
+    if (!currentBatch) return;
+
+    let index = 0;
+    const interval = setInterval(() => {
+      if (index < currentBatch.length) {
+        setLogs(prev => [...prev, currentBatch[index]]);
+        index++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 2800);
+
+    return () => clearInterval(interval);
+  }, [currentStep]);
+
+  const consoleRef = useRef(null);
+  useEffect(() => {
+    if (consoleRef.current) {
+      consoleRef.current.scrollTop = consoleRef.current.scrollHeight;
+    }
+  }, [logs]);
+
+  return (
+    <div className="mt-5 border border-slate-800/80 bg-slate-950/80 rounded-2xl p-4 font-mono text-[10px] text-slate-400 shadow-inner">
+      <div className="flex justify-between items-center border-b border-slate-900 pb-2 mb-2 text-slate-500 font-bold uppercase tracking-wider">
+        <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" /> Console de logs GPU</span>
+        <span>CUDA SPEED: 42 TFLOPS</span>
+      </div>
+      <div ref={consoleRef} className="h-32 overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent text-left">
+        {logs.length > 0 ? (
+          logs.map((log, idx) => (
+            <div key={idx} className="flex gap-1.5 leading-normal">
+              <span className="text-slate-600">[{new Date().toLocaleTimeString('pt-BR')}]</span>
+              <span className={log.includes('[SYS]') ? 'text-emerald-400' : log.includes('[IA]') ? 'text-indigo-400' : 'text-slate-300'}>{log}</span>
+            </div>
+          ))
+        ) : (
+          <div className="text-slate-600 italic">Conectando ao barramento de logs...</div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const ProgressStepper = ({ status, timeElapsed, queuePosition }) => {
   const [currentStep, setCurrentStep] = useState(0);
 
@@ -129,10 +225,13 @@ const ProgressStepper = ({ status, timeElapsed, queuePosition }) => {
       )}
 
       {status === 'processing' && (
-        <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-200/80 text-xs p-4 rounded-xl mt-6 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-yellow-500 shrink-0" />
-          <p>Este processo é muito intensivo e pode levar <b>~3 a 5 minutos</b> no Colab (ou mais localmente). Não feche esta janela.</p>
-        </div>
+        <>
+          <ConsoleLogs currentStep={currentStep} />
+          <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-200/80 text-xs p-4 rounded-xl mt-6 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-yellow-500 shrink-0" />
+            <p>Este processo é muito intensivo e pode levar <b>~3 a 5 minutos</b> no Colab (ou mais localmente). Não feche esta janela.</p>
+          </div>
+        </>
       )}
     </div>
   );

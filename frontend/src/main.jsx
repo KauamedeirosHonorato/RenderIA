@@ -12,6 +12,7 @@ import GalleryPage from './pages/GalleryPage';
 import ProfilePage from './pages/ProfilePage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
+import CustomizerPage from './pages/CustomizerPage';
 import AuthGuard from './components/AuthGuard';
 
 createRoot(document.getElementById('root')).render(
@@ -28,6 +29,7 @@ createRoot(document.getElementById('root')).render(
               </AuthGuard>
             } />
             <Route path="/gallery" element={<GalleryPage />} />
+            <Route path="/customizer" element={<CustomizerPage />} />
             <Route path="/profile" element={
               <AuthGuard>
                 <ProfilePage />

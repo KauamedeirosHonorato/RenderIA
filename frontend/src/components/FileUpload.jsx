@@ -1,7 +1,7 @@
-import React, { useState, useCallback } from 'react';
-import { Upload, Loader2, FileImage, Zap, Settings2, Cpu, Gem, Palette, ChevronDown, ChevronUp, RotateCcw, X, Type, Image as ImageIcon } from 'lucide-react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { Upload, Loader2, FileImage, Zap, Settings2, Cpu, Gem, Palette, ChevronDown, ChevronUp, RotateCcw, X, Type, Image as ImageIcon, Globe, Wifi, Download, BookOpen, ExternalLink } from 'lucide-react';
 import axios from 'axios';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, setApiUrl } from '../config';
 
 // ═══════════════════════════════════════════════════
 // Presets de Qualidade
@@ -97,6 +97,15 @@ const FileUpload = ({ onUploadSuccess }) => {
     const [preview, setPreview] = useState(null);
     const [inputMode, setInputMode] = useState('image'); // 'image' or 'text'
     const [textPrompt, setTextPrompt] = useState('');
+    const [serverUrl, setServerUrl] = useState(API_BASE_URL);
+    const [isSaved, setIsSaved] = useState(false);
+    const [enhanceActive, setEnhanceActive] = useState(true);
+    const [enhanceCategory, setEnhanceCategory] = useState('object');
+
+    // Keep local server Url sync'd with global API url changes
+    useEffect(() => {
+        setServerUrl(API_BASE_URL);
+    }, [API_BASE_URL]);
 
     const applyPreset = (key) => {
         setActivePreset(key);
@@ -149,7 +158,22 @@ const FileUpload = ({ onUploadSuccess }) => {
         if (inputMode === 'image') {
             formData.append("image", selectedFile);
         } else {
-            formData.append("text_prompt", textPrompt.trim());
+            const basePrompt = textPrompt.trim();
+            let enrichedPrompt = basePrompt;
+            
+            if (enhanceActive) {
+                const ENHANCEMENTS = {
+                    character: "highly detailed 3d character model, clean watertight mesh, game ready asset, smooth topology, beautifully textured, 8k resolution, professional PBR render, full body, standalone on a flat base",
+                    creature: "epic highly detailed 3d creature monster model, watertight organic mesh, clean quad topology, beautiful textures, cinematic lighting, 8k resolution render, standalone on a flat base",
+                    object: "beautiful decorative 3d object, watertight mesh, highly detailed craft, elegant design, smooth surfaces, PBR materials, studio lighting, 8k blender render, standalone on a flat base",
+                    scifi: "cyberpunk scifi 3d model, highly detailed hard surfaces, mecha aesthetic, clean panel lining, watertight mesh, metallic PBR textures, 8k professional render",
+                    fantasy: "mystical fantasy rpg 3d prop model, highly detailed ornament, ancient runes, watertight clean mesh, hand-painted texture style, magical lighting, 8k resolution",
+                    none: "highly detailed 3d model, clean watertight mesh, game ready asset, smooth topology, beautifully textured, 8k resolution, professional render"
+                };
+                const suffix = ENHANCEMENTS[enhanceCategory] || ENHANCEMENTS.none;
+                enrichedPrompt = `${basePrompt}, ${suffix}`;
+            }
+            formData.append("text_prompt", enrichedPrompt);
         }
         formData.append("steps", settings.steps);
         formData.append("guidance_scale", settings.guidance);
@@ -317,15 +341,61 @@ const FileUpload = ({ onUploadSuccess }) => {
                 )
             ) : (
                 // TEXT MODE
-                <div className="relative">
-                    <textarea
-                        value={textPrompt}
-                        onChange={(e) => setTextPrompt(e.target.value)}
-                        placeholder="Ex: Um dragão chinês estilo low poly azul com detalhes dourados..."
-                        className="w-full h-32 bg-slate-800/50 border border-slate-700 rounded-xl p-4 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 outline-none resize-none transition-all"
-                    />
-                    <div className="absolute bottom-3 right-3 text-xs text-slate-500 font-mono">
-                        {textPrompt.length} caracteres
+                <div className="space-y-3">
+                    <div className="relative">
+                        <textarea
+                            value={textPrompt}
+                            onChange={(e) => setTextPrompt(e.target.value)}
+                            placeholder="Ex: Um dragão chinês estilo low poly azul com detalhes dourados..."
+                            className="w-full h-32 bg-slate-800/50 border border-slate-700 rounded-xl p-4 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 outline-none resize-none transition-all"
+                        />
+                        <div className="absolute bottom-3 right-3 text-xs text-slate-500 font-mono">
+                            {textPrompt.length} caracteres
+                        </div>
+                    </div>
+
+                    {/* Prompt Enhancer Category Selector */}
+                    <div className="bg-slate-900/40 border border-slate-800 p-3 rounded-xl space-y-2">
+                        <div className="flex justify-between items-center">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                                Otimizar Prompt IA (Enhancer)
+                            </span>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    checked={enhanceActive}
+                                    onChange={(e) => setEnhanceActive(e.target.checked)}
+                                    className="sr-only peer"
+                                />
+                                <div className="w-8 h-4.5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-500 after:border-slate-450 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-indigo-500 peer-checked:after:bg-white" />
+                            </label>
+                        </div>
+                        
+                        {enhanceActive && (
+                            <div className="grid grid-cols-3 gap-1.5 pt-1 animate-fade-in">
+                                {[
+                                    { id: 'character', name: '👤 Personagem' },
+                                    { id: 'creature', name: '👾 Criatura' },
+                                    { id: 'object', name: '🏺 Objeto Artístico' },
+                                    { id: 'scifi', name: '🚀 Sci-Fi Mecha' },
+                                    { id: 'fantasy', name: '🗡️ Fantasia' },
+                                    { id: 'none', name: '⚡ Sem Suffixos' },
+                                ].map((cat) => (
+                                    <button
+                                        key={cat.id}
+                                        onClick={() => setEnhanceCategory(cat.id)}
+                                        className={`py-1.5 rounded-lg border text-center text-[10px] font-bold transition-all ${
+                                            enhanceCategory === cat.id
+                                                ? 'bg-indigo-500/10 border-indigo-500/35 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.1)]'
+                                                : 'bg-slate-900/40 border-slate-850 text-slate-400 hover:text-slate-200'
+                                        }`}
+                                    >
+                                        {cat.name}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -352,7 +422,72 @@ const FileUpload = ({ onUploadSuccess }) => {
 
             {/* ════ Painel Avançado ════ */}
             {showAdvanced && (
-                <div className="bg-slate-900/60 p-5 rounded-xl border border-slate-700/80 space-y-5">
+                <div className="bg-slate-900/60 p-5 rounded-xl border border-slate-700/80 space-y-5 animate-fade-in">
+
+                    {/* 🔗 URL de Conexão do Servidor + Colab Notebook Quick Link */}
+                    <div className="space-y-4 pb-4 border-b border-slate-800">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                    Conexão do Servidor Ativa
+                                </label>
+                                <span className="text-[11px] font-mono text-slate-400 block truncate mt-1 max-w-[280px]">
+                                    {API_BASE_URL}
+                                </span>
+                            </div>
+                            <a 
+                                href="/profile" 
+                                onClick={(e) => { e.preventDefault(); window.location.href = '/profile'; }}
+                                className={`px-3 py-2 rounded-xl border flex items-center justify-center gap-1.5 shrink-0 transition-all ${
+                                    API_BASE_URL.includes('ngrok') 
+                                        ? 'bg-green-500/10 border-green-500/20 text-green-400 hover:bg-green-500/20 shadow-[0_0_10px_rgba(34,197,94,0.15)]' 
+                                        : 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400 hover:bg-yellow-500/20 shadow-[0_0_10px_rgba(234,179,8,0.15)]'
+                                }`}
+                            >
+                                {API_BASE_URL.includes('ngrok') ? <Globe className="w-3.5 h-3.5" /> : <Wifi className="w-3.5 h-3.5" />}
+                                <span className="text-[10px] font-bold uppercase tracking-wider">
+                                    Configurar Host ⚙️
+                                </span>
+                            </a>
+                        </div>
+                        
+                        {/* Colab Notebook mini banner inside advanced panel */}
+                        <div className="p-3.5 bg-indigo-950/20 rounded-xl border border-indigo-500/20 space-y-2 relative overflow-hidden">
+                            <div className="flex items-start gap-2.5">
+                                <div className="p-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg text-indigo-400 shrink-0">
+                                    <BookOpen className="w-4 h-4" />
+                                </div>
+                                <div className="space-y-0.5">
+                                    <h5 className="text-[11px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                                        GPU Gratuita no Google Colab
+                                        <span className="px-1 py-0.2 bg-amber-500/15 border border-amber-500/25 rounded text-amber-400 text-[7px] font-black uppercase tracking-wider">Livre</span>
+                                    </h5>
+                                    <p className="text-[10px] text-slate-400 leading-normal">
+                                        Use a GPU T4 do Google Colab para alimentar as gerações 3D deste site gratuitamente! Baixe o notebook oficial e execute-o.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex gap-2 pt-0.5">
+                                <a
+                                    href="/Nexa3D_Colab_Server.ipynb"
+                                    download="Nexa3D_Colab_Server.ipynb"
+                                    className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[9px] rounded-md transition-all flex items-center gap-1"
+                                >
+                                    <Download className="w-3 h-3" />
+                                    Baixar Notebook (.ipynb)
+                                </a>
+                                <a
+                                    href="https://colab.research.google.com/"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-[9px] rounded-md border border-slate-700 transition-all flex items-center gap-1"
+                                >
+                                    Abrir Colab
+                                    <ExternalLink className="w-2.5 h-2.5" />
+                                </a>
+                            </div>
+                        </div>
+                    </div>
 
                     <div className="flex items-center justify-between">
                         <h4 className="text-sm font-bold text-slate-300 flex items-center gap-2">

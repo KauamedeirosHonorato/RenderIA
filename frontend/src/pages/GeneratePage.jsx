@@ -172,30 +172,7 @@ const GeneratePage = () => {
     } = useGeneration();
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {/* Server Bar */}
-            <div className="flex items-center gap-3 bg-slate-900/60 border border-slate-800 rounded-xl px-4 py-3 mb-8">
-                <div className={`flex items-center gap-2 shrink-0 ${API_BASE_URL.includes('ngrok') ? 'text-green-400' : 'text-yellow-400'}`}>
-                    {API_BASE_URL.includes('ngrok') ? <Globe className="w-4 h-4" /> : <Wifi className="w-4 h-4" />}
-                    <span className="text-xs font-bold uppercase tracking-wider">
-                        {API_BASE_URL.includes('ngrok') ? 'Nuvem' : 'Local'}
-                    </span>
-                </div>
-                <input
-                    type="text"
-                    defaultValue={API_BASE_URL}
-                    placeholder="Cole a URL do Colab (ex: https://xxxx.ngrok-free.app)"
-                    className="flex-1 bg-transparent border-none text-sm text-slate-300 placeholder-slate-600 outline-none font-mono"
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                            const val = e.target.value.trim().replace(/\/$/, '');
-                            if (val) setApiUrl(val);
-                        }
-                    }}
-                />
-                <span className="text-[10px] text-slate-600 shrink-0">Enter para salvar</span>
-            </div>
-
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
             {/* Layout */}
             <div className="flex flex-col lg:flex-row gap-8 items-start">
                 {/* Left */}
@@ -203,9 +180,20 @@ const GeneratePage = () => {
                     <section className="glass rounded-2xl p-6 md:p-8 shadow-2xl relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-[80px] pointer-events-none" />
 
-                        <h2 className="text-xl font-bold mb-6 flex items-center gap-3 text-white">
-                            <Zap className="w-5 h-5 text-yellow-400 shrink-0" />
-                            Enviar & Gerar Modelo
+                        <h2 className="text-xl font-bold mb-6 flex items-center justify-between text-white w-full">
+                            <span className="flex items-center gap-3">
+                                <Zap className="w-5 h-5 text-yellow-400 shrink-0 animate-pulse" />
+                                Enviar & Gerar Modelo
+                            </span>
+                            {/* Glowing connection status badge */}
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold uppercase rounded-full border ${
+                                API_BASE_URL.includes('ngrok')
+                                    ? 'bg-green-500/10 border-green-500/20 text-green-400 shadow-[0_0_15px_rgba(34,197,94,0.15)]'
+                                    : 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.15)]'
+                            }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${API_BASE_URL.includes('ngrok') ? 'bg-green-400 animate-pulse' : 'bg-yellow-400'}`} />
+                                {API_BASE_URL.includes('ngrok') ? 'Servidor Nuvem' : 'Servidor Local'}
+                            </span>
                         </h2>
 
                         <FileUpload onUploadSuccess={addTask} />
