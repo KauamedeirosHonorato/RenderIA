@@ -15,20 +15,18 @@ const GalleryPage = () => {
     useEffect(() => {
         const fetchModels = async () => {
             try {
-                // Fetch public raw 3D models from AI
+                // Fetch public raw 3D models from AI (limit 100 to sort in memory)
                 const qModels = query(
                     collection(db, 'models'),
                     where('isPublic', '==', true),
-                    orderBy('createdAt', 'desc'),
-                    limit(50)
+                    limit(100)
                 );
                 
-                // Fetch public custom mockups from Customizer
+                // Fetch public custom mockups from Customizer (limit 100 to sort in memory)
                 const qMockups = query(
                     collection(db, 'custom_mockups'),
                     where('isPublic', '==', true),
-                    orderBy('createdAt', 'desc'),
-                    limit(50)
+                    limit(100)
                 );
 
                 const [snapshotModels, snapshotMockups] = await Promise.all([

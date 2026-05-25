@@ -69,8 +69,7 @@ const ProfilePage = () => {
                 try {
                     const q = query(
                         collection(db, 'custom_mockups'),
-                        where('userId', '==', user.uid),
-                        orderBy('createdAt', 'desc')
+                        where('userId', '==', user.uid)
                     );
                     const snapshot = await getDocs(q);
                     const dbMockups = snapshot.docs.map(doc => ({

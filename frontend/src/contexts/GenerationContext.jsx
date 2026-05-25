@@ -34,8 +34,7 @@ export function GenerationProvider({ children }) {
                 try {
                     const q = query(
                         collection(db, 'models'),
-                        where('userId', '==', currentUser.uid),
-                        orderBy('createdAt', 'desc')
+                        where('userId', '==', currentUser.uid)
                     );
                     const snapshot = await getDocs(q);
                     const dbHistory = snapshot.docs.map(doc => ({
