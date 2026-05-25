@@ -26,21 +26,48 @@ if (!isMock) {
     }
 }
 
+// Suporte a Estado de Autenticação Interativo no Modo Mock (Persistido no localStorage)
+let mockUser = null;
+try {
+    const saved = localStorage.getItem('nexa_mock_user');
+    if (saved) mockUser = JSON.parse(saved);
+} catch (e) {}
+
+const mockListeners = new Set();
+const notifyMockListeners = () => {
+    mockListeners.forEach(cb => cb(mockUser));
+};
+
 export const auth = !isMock ? getAuth(app) : {
-    currentUser: null,
-    onAuthStateChanged: (callback) => {
-        // Automatically provide a mock logged-in user in development if mock mode is on
-        setTimeout(() => {
-            callback({
-                uid: 'mock-user-123',
-                displayName: 'Usuário Local (Mock)',
-                email: 'mock@nexa3d.local',
-                photoURL: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
-            });
-        }, 100);
-        return () => {};
+    get currentUser() {
+        return mockUser;
     },
-    signOut: () => Promise.resolve(),
+    onAuthStateChanged: (callback) => {
+        mockListeners.add(callback);
+        // Notifica o estado atual de forma assíncrona para simular comportamento real
+        setTimeout(() => callback(mockUser), 50);
+        return () => {
+            mockListeners.delete(callback);
+        };
+    },
+    signOut: () => {
+        mockUser = null;
+        localStorage.removeItem('nexa_mock_user');
+        notifyMockListeners();
+        return Promise.resolve();
+    },
+    // Helper customizado para simular login no modo Mock
+    signInMock: (email, displayName = 'Usuário Mock') => {
+        mockUser = {
+            uid: 'mock-user-123',
+            displayName: displayName,
+            email: email,
+            photoURL: 'https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=150&auto=format&fit=crop&q=60',
+        };
+        localStorage.setItem('nexa_mock_user', JSON.stringify(mockUser));
+        notifyMockListeners();
+        return Promise.resolve({ user: mockUser });
+    }
 };
 
 export const googleProvider = new GoogleAuthProvider();

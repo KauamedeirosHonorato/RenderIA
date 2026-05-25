@@ -99,6 +99,8 @@ const ProfilePage = () => {
     const handleLogout = async () => {
         if (!isMock) {
             await signOut(auth);
+        } else {
+            await auth.signOut();
         }
         navigate('/');
     };

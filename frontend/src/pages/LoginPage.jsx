@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, googleProvider, db } from '../firebase';
+import { auth, googleProvider, db, isMock } from '../firebase';
 import { Cuboid, Mail, Lock, User, ArrowRight, Loader2 } from 'lucide-react';
 import { useAuthState } from '../hooks/useAuth';
 
@@ -50,8 +50,12 @@ const LoginPage = () => {
         setLoading(true);
         setError(null);
         try {
-            const result = await signInWithPopup(auth, googleProvider);
-            try { await saveUserToFirestore(result.user); } catch (e) { console.warn('Firestore save skipped:', e.message); }
+            if (isMock) {
+                await auth.signInMock('google-mock@nexa3d.local', 'Criador Mock (Google)');
+            } else {
+                const result = await signInWithPopup(auth, googleProvider);
+                try { await saveUserToFirestore(result.user); } catch (e) { console.warn('Firestore save skipped:', e.message); }
+            }
             navigate('/');
         } catch (err) {
             console.error(err);
@@ -70,12 +74,16 @@ const LoginPage = () => {
         setLoading(true);
         setError(null);
         try {
-            if (isRegister) {
-                const result = await createUserWithEmailAndPassword(auth, email, password);
-                await updateProfile(result.user, { displayName: name });
-                try { await saveUserToFirestore(result.user); } catch (e) { console.warn('Firestore save skipped:', e.message); }
+            if (isMock) {
+                await auth.signInMock(email, name || 'Criador Mock');
             } else {
-                await signInWithEmailAndPassword(auth, email, password);
+                if (isRegister) {
+                    const result = await createUserWithEmailAndPassword(auth, email, password);
+                    await updateProfile(result.user, { displayName: name });
+                    try { await saveUserToFirestore(result.user); } catch (e) { console.warn('Firestore save skipped:', e.message); }
+                } else {
+                    await signInWithEmailAndPassword(auth, email, password);
+                }
             }
             navigate('/');
         } catch (err) {

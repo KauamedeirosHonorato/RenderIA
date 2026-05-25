@@ -11,9 +11,11 @@ const Navbar = () => {
 
     const links = [
         { to: '/', label: 'Início' },
-        { to: '/generate', label: 'Gerar' },
-        { to: '/customizer', label: 'Customizar 3D' },
-        { to: '/gallery', label: 'Galeria' },
+        ...(user ? [
+            { to: '/generate', label: 'Gerar' },
+            { to: '/customizer', label: 'Customizar 3D' },
+            { to: '/gallery', label: 'Galeria' },
+        ] : []),
     ];
 
     const isActive = (path) => location.pathname === path;
@@ -21,7 +23,7 @@ const Navbar = () => {
     return (
         <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-slate-800/50">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between h-16">
+                <div className="relative flex items-center justify-between h-16">
                     {/* Logo */}
                     <Link to="/" className="flex items-center gap-3 group">
                         <div className="bg-cyan-500/10 p-2 rounded-xl border border-cyan-500/20 shadow-[0_0_15px_rgba(6,182,212,0.15)] group-hover:shadow-[0_0_25px_rgba(6,182,212,0.3)] transition-shadow">
@@ -38,7 +40,7 @@ const Navbar = () => {
                     </Link>
 
                     {/* Desktop Links */}
-                    <div className="hidden md:flex items-center gap-1">
+                    <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-1">
                         {links.map(link => (
                             <Link
                                 key={link.to}

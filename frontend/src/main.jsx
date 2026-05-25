@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import './index.css';
 
+import { AuthProvider } from './hooks/useAuth';
 import { GenerationProvider } from './contexts/GenerationContext';
 import MainLayout from './layouts/MainLayout';
 import LandingPage from './pages/LandingPage';
@@ -18,28 +19,34 @@ import AuthGuard from './components/AuthGuard';
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
-      <GenerationProvider>
-        <Routes>
-          <Route element={<MainLayout />}>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/generate" element={
-              <AuthGuard>
-                <GeneratePage />
-              </AuthGuard>
-            } />
-            <Route path="/gallery" element={<GalleryPage />} />
-            <Route path="/customizer" element={<CustomizerPage />} />
-            <Route path="/profile" element={
-              <AuthGuard>
-                <ProfilePage />
-              </AuthGuard>
-            } />
-            <Route path="/terms" element={<TermsPage />} />
-            <Route path="/privacy" element={<PrivacyPage />} />
-          </Route>
-        </Routes>
-      </GenerationProvider>
+      <AuthProvider>
+        <GenerationProvider>
+          <Routes>
+            <Route element={<MainLayout />}>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/generate" element={
+                <AuthGuard>
+                  <GeneratePage />
+                </AuthGuard>
+              } />
+              <Route path="/gallery" element={<GalleryPage />} />
+              <Route path="/customizer" element={
+                <AuthGuard>
+                  <CustomizerPage />
+                </AuthGuard>
+              } />
+              <Route path="/profile" element={
+                <AuthGuard>
+                  <ProfilePage />
+                </AuthGuard>
+              } />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+            </Route>
+          </Routes>
+        </GenerationProvider>
+      </AuthProvider>
     </BrowserRouter>
   </StrictMode>,
 );

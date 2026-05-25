@@ -19,7 +19,9 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 // ═══════════════════════════════════════════════
 
 // Decal texture projection component (mounted conditionally)
-function ProjectedDecal({ imageUrl, position, rotation, scale }) {
+// Decal texture projection component (mounted conditionally)
+// Decal texture projection component (mounted conditionally)
+function ProjectedDecal({ imageUrl, position, rotation, scale, styleMode = 'color', baseColor = '#ffffff', materialType = 'ceramic' }) {
     const texture = useTexture(imageUrl);
     
     useEffect(() => {
@@ -31,17 +33,44 @@ function ProjectedDecal({ imageUrl, position, rotation, scale }) {
         }
     }, [texture]);
 
-    return (
-        <Decal
-            name="projected-decal"
-            position={position}
-            rotation={rotation}
-            scale={scale}
-            map={texture}
-            polygonOffset
-            polygonOffsetFactor={-10}
-        />
-    );
+    if (!texture) return null;
+
+    // Materials logic based on selected finish
+    let matProps = {
+        roughness: materialType === 'matte' ? 0.8 : 0.15,
+        metalness: materialType === 'metal' ? 0.95 : 0.05,
+        clearcoat: materialType === 'ceramic' ? 1.0 : 0.0,
+        clearcoatRoughness: 0.05,
+    };
+
+    if (styleMode === 'engraved_3d' || styleMode === 'embossed_3d') {
+        // Gravado/Relevo: matches base color, uses texture as bump map for 3D simulation
+        return (
+            <Decal name="projected-decal" position={position} rotation={rotation} scale={scale} polygonOffset polygonOffsetFactor={-10}>
+                <meshStandardMaterial
+                    {...matProps}
+                    color={baseColor}
+                    bumpMap={texture}
+                    bumpScale={styleMode === 'engraved_3d' ? -0.03 : 0.03}
+                    transparent={true}
+                    depthWrite={false}
+                />
+            </Decal>
+        );
+    } else {
+        // Standard color decal: restore original Drei Decal behavior with perfect blending & zero bugs!
+        return (
+            <Decal
+                name="projected-decal"
+                position={position}
+                rotation={rotation}
+                scale={scale}
+                map={texture}
+                polygonOffset
+                polygonOffsetFactor={-10}
+            />
+        );
+    }
 }
 
 // 3D Ornament model component (mounted conditionally)
@@ -280,6 +309,7 @@ const ProductModel = React.forwardRef(({
     decalPos, 
     decalRot, 
     decalScale,
+    decalStyleMode = 'color',
     ornamentUrl,
     ornamentPos,
     ornamentRot,
@@ -399,6 +429,9 @@ const ProductModel = React.forwardRef(({
                                 position={cylinderDecalPos} 
                                 rotation={cylinderDecalRot} 
                                 scale={[decalScale[0], decalScale[1], 0.5]} 
+                                styleMode={decalStyleMode}
+                                baseColor={baseColor}
+                                materialType={materialType}
                             />
                         </DecalErrorBoundary>
                     )}
@@ -442,6 +475,9 @@ const ProductModel = React.forwardRef(({
                                 position={activeHandleDecalPos} 
                                 rotation={activeHandleDecalRot} 
                                 scale={activeHandleDecalScale} 
+                                styleMode={decalStyleMode}
+                                baseColor={baseColor}
+                                materialType={materialType}
                             />
                         </DecalErrorBoundary>
                     )}
@@ -523,6 +559,9 @@ const ProductModel = React.forwardRef(({
                                 position={cylinderDecalPos} 
                                 rotation={cylinderDecalRot} 
                                 scale={[decalScale[0], decalScale[1], 0.5]} 
+                                styleMode={decalStyleMode}
+                                baseColor={baseColor}
+                                materialType={materialType}
                             />
                         </DecalErrorBoundary>
                     )}
@@ -590,6 +629,9 @@ const ProductModel = React.forwardRef(({
                                 position={activeHandleDecalPos} 
                                 rotation={activeHandleDecalRot} 
                                 scale={activeHandleDecalScale} 
+                                styleMode={decalStyleMode}
+                                baseColor={baseColor}
+                                materialType={materialType}
                             />
                         </DecalErrorBoundary>
                     )}
@@ -632,6 +674,9 @@ const ProductModel = React.forwardRef(({
                                 position={cylinderDecalPos} 
                                 rotation={cylinderDecalRot} 
                                 scale={[decalScale[0], decalScale[1], 0.5]} 
+                                styleMode={decalStyleMode}
+                                baseColor={baseColor}
+                                materialType={materialType}
                             />
                         </DecalErrorBoundary>
                     )}
@@ -732,6 +777,14 @@ class CanvasErrorBoundary extends React.Component {
     }
 }
 
+// Estúdios e Presets de Iluminação para Visualização 3D PBR Realista
+const AMBIENTS = {
+    studio: { stage: 'studio', env: 'city', label: 'Estúdio Suave', desc: 'Luz neutra de estúdio fotográfico' },
+    sunset: { stage: 'apartment', env: 'sunset', label: 'Luz Natural', desc: 'Calor dourado do fim de tarde' },
+    neon: { stage: 'warehouse', env: 'night', label: 'Cyber Neon', desc: 'Contrastes frios e brilho noturno' },
+    luxury: { stage: 'lobby', env: 'lobby', label: 'Showroom de Luxo', desc: 'Reflexos de mármore e hall elegante' }
+};
+
 // ═══════════════════════════════════════════════
 // Main Component
 // ═══════════════════════════════════════════════
@@ -758,6 +811,7 @@ const CustomizerPage = () => {
     const [decalPosY, setDecalPosY] = useState(0.0); // translation Y
     const [decalRot, setDecalRot] = useState(0.0);   // rotation angle (radians)
     const [decalSize, setDecalSize] = useState(1.2);  // scale multiplier
+    const [decalStyleMode, setDecalStyleMode] = useState('color'); // 'color', 'negative_color', 'engraved_3d', 'embossed_3d'
 
     // New: Individual Handle Decal controls
     const [individualHandle, setIndividualHandle] = useState(false);
@@ -794,6 +848,10 @@ const CustomizerPage = () => {
     const [printLayerHeight, setPrintLayerHeight] = useState(0.20); // 0.20mm default
     const [isExportingStl, setIsExportingStl] = useState(false);
     const [exportStlSuccess, setExportStlSuccess] = useState(false);
+
+    // Estúdio 3D e Rotação Automática do Viewport
+    const [studioAmbient, setStudioAmbient] = useState('studio'); // 'studio', 'sunset', 'neon', 'luxury'
+    const [autoRotate, setAutoRotate] = useState(false);
 
     // Dynamic state updates when location changes
     useEffect(() => {
@@ -1117,6 +1175,28 @@ const CustomizerPage = () => {
         }
     };
 
+    // Cálculo de Escala e Posição Físicas com base na Grade de Impressão 3D (Mesa de 220x220mm)
+    // 1 unidade R3F = 100mm reais
+    let physicalScale = 1.0;
+    let physicalPositionY = 0.0;
+
+    if (productType === 'caneca') {
+        // Altura da geometria = 2.0 unidades. Para altura desejada (printHeight mm):
+        physicalScale = printHeight / 200;
+        // Posição para manter a base no chão (y = -1.05)
+        physicalPositionY = -1.05 + physicalScale;
+    } else if (productType === 'copo') {
+        // Altura da geometria = 2.5 unidades.
+        physicalScale = printHeight / 250;
+        // Posição para manter a base no chão (y = -1.05)
+        physicalPositionY = -1.05 + 1.25 * physicalScale;
+    } else if (productType === 'chicara') {
+        // Altura total da geometria com pires = 1.27 unidades.
+        physicalScale = printHeight / 127;
+        // Posição para manter a base no chão (y = -1.05)
+        physicalPositionY = -1.05 + 0.67 * physicalScale;
+    }
+
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
             {/* Header Title */}
@@ -1154,6 +1234,22 @@ const CustomizerPage = () => {
 
                     {/* Canvas Container */}
                     <div className="flex-1 w-full h-full relative cursor-grab active:cursor-grabbing">
+                        {/* Floating Viewport Controls */}
+                        <div className="absolute top-4 right-4 z-10 flex gap-2">
+                            <button
+                                onClick={() => setAutoRotate(!autoRotate)}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide uppercase transition-all backdrop-blur-md border ${
+                                    autoRotate 
+                                        ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.2)]' 
+                                        : 'bg-slate-900/40 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                                }`}
+                                title={autoRotate ? "Pausar rotação automática" : "Ativar rotação automática"}
+                            >
+                                <RotateCw className={`w-3.5 h-3.5 ${autoRotate ? 'animate-[spin_4s_linear_infinite]' : ''}`} />
+                                <span>Auto Giro</span>
+                            </button>
+                        </div>
+
                         <CanvasErrorBoundary onReset={handleReset}>
                             <Canvas 
                                 shadows 
@@ -1171,7 +1267,10 @@ const CustomizerPage = () => {
                                     <directionalLight position={[-5, 5, -5]} intensity={0.6} color="#4f46e5" />
                                     <directionalLight position={[0, -2, 0]} intensity={0.3} color="#ffffff" />
                                     
-                                    <Stage environment="studio" intensity={0.6} adjustCamera={false}>
+                                    <group 
+                                        position={[0, physicalPositionY, 0]} 
+                                        scale={[physicalScale, physicalScale, physicalScale]}
+                                    >
                                         <ProductModel 
                                             ref={productGroupRef}
                                             productType={productType}
@@ -1181,6 +1280,7 @@ const CustomizerPage = () => {
                                             decalPos={[decalPosX, decalPosY]}
                                             decalRot={decalRot}
                                             decalScale={[decalSize, decalSize]}
+                                            decalStyleMode={decalStyleMode}
                                             ornamentUrl={ornamentUrl}
                                             ornamentPos={ornPos}
                                             ornamentRot={ornRot}
@@ -1201,10 +1301,10 @@ const CustomizerPage = () => {
                                                 setHandleDecalUrl('');
                                             }}
                                         />
-                                    </Stage>
+                                    </group>
 
                                     <ContactShadows position={[0, -1.05, 0]} opacity={0.6} scale={6} blur={2.2} far={3} color="#000000" />
-                                    <Environment preset="city" />
+                                    <Environment preset={AMBIENTS[studioAmbient].env} />
 
                                     {showPrintBed && (
                                         <gridHelper 
@@ -1220,6 +1320,7 @@ const CustomizerPage = () => {
                                     minDistance={2}
                                     maxDistance={8}
                                     maxPolarAngle={Math.PI / 1.7}
+                                    autoRotate={autoRotate}
                                 />
                             </Canvas>
                         </CanvasErrorBoundary>
@@ -1325,6 +1426,27 @@ const CustomizerPage = () => {
                                                 >
                                                     <span className="text-xs font-bold block">{mat.label}</span>
                                                     <span className="text-[9px] opacity-60 mt-0.5">{mat.desc}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* 3D Lighting & Environment Studio Presets */}
+                                    <div>
+                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Estúdio & Iluminação 3D</p>
+                                        <div className="grid grid-cols-2 gap-2.5">
+                                            {Object.entries(AMBIENTS).map(([key, value]) => (
+                                                <button
+                                                    key={key}
+                                                    onClick={() => setStudioAmbient(key)}
+                                                    className={`px-3 py-2.5 rounded-xl border text-left transition-all ${
+                                                        studioAmbient === key
+                                                            ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.08)]'
+                                                            : 'bg-slate-900/40 border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-200'
+                                                    }`}
+                                                >
+                                                    <span className="text-xs font-bold block">{value.label}</span>
+                                                    <span className="text-[9px] opacity-60 mt-0.5">{value.desc}</span>
                                                 </button>
                                             ))}
                                         </div>
@@ -1531,6 +1653,31 @@ const CustomizerPage = () => {
                                                     value={decalRot} onChange={(e) => setDecalRot(parseFloat(e.target.value))}
                                                     className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
                                                 />
+                                            </div>
+
+                                            {/* Style Mode Selector */}
+                                            <div className="space-y-1.5 pt-3 border-t border-slate-850">
+                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Efeito Tridimensional / Estilo</p>
+                                                <div className="grid grid-cols-3 gap-2">
+                                                    {[
+                                                        { id: 'color', label: 'Estampa Original', desc: 'Cores realistas em PBR' },
+                                                        { id: 'engraved_3d', label: 'Gravado (Baixo)', desc: 'Esculpido na caneca (STL)' },
+                                                        { id: 'embossed_3d', label: 'Relevo (Alto)', desc: 'Extrudado na caneca (STL)' },
+                                                    ].map((style) => (
+                                                        <button
+                                                            key={style.id}
+                                                            onClick={() => setDecalStyleMode(style.id)}
+                                                            className={`px-2.5 py-2 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                                                                decalStyleMode === style.id
+                                                                    ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.08)]'
+                                                                    : 'bg-slate-900/40 border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-200'
+                                                            }`}
+                                                        >
+                                                            <span className="text-[11px] font-bold block leading-tight">{style.label}</span>
+                                                            <span className="text-[9px] opacity-60 mt-1 leading-tight block">{style.desc}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
                                             </div>
                                         </div>
                                     ) : (
