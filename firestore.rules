@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Regras para a coleção de mockups customizados
+    match /custom_mockups/{mockupId} {
+      // Qualquer pessoa (mesmo deslogada) pode ler se o mockup for público (isPublic == true)
+      allow read: if resource == null || 
+                   resource.data.isPublic == true || 
+                   (request.auth != null && request.auth.uid == resource.data.userId);
+                   
+      // Criação exige usuário logado combinando com o userId enviado
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      
+      // Edição ou exclusão exige ser o proprietário
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+    // Regras para a coleção de modelos 3D gerados pela IA
+    match /models/{modelId} {
+      allow read: if resource == null || 
+                   resource.data.isPublic == true || 
+                   (request.auth != null && request.auth.uid == resource.data.userId);
+                   
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+    // Regras para documentos de usuários (Perfil)
+    match /users/{userId} {
+      allow read: if true; // Permite leitura de perfis
+      allow write: if request.auth != null && request.auth.uid == userId; // Apenas o proprietário edita
+    }
+  }
+}
